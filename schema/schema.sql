@@ -1,3 +1,5 @@
+-- SUPERSEDED (2026-10-20): media no longer goes to a server; see docs/storage-plan.md.
+-- Kept as the sketch of the film's data model. Only `waitlist` (supabase/) is deployed.
 -- yearfilm: data model sketch (Postgres / Supabase). See docs/data-model.md for the why.
 
 create extension if not exists pgcrypto;

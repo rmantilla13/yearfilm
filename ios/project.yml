@@ -14,6 +14,9 @@ settings:
     # Set to your Apple Developer team ID (App Store Connect → Membership) to sign.
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
+    # CloudKit traps if the app runs without its iCloud entitlement, which unsigned builds
+    # (CODE_SIGNING_ALLOWED=NO, as in CI) don't have. Those builds pass YF_CLOUDKIT=NO.
+    YF_CLOUDKIT: "YES"
 targets:
   Yearfilm:
     type: application
@@ -52,6 +55,7 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         # Family invites are iCloud shares, accepted through the scene delegate.
         CKSharingSupported: true
+        YFCloudKit: $(YF_CLOUDKIT)
         # CloudKit pushes changes so backups and relatives' clips arrive without opening the app.
         UIBackgroundModes: [remote-notification]
     settings:

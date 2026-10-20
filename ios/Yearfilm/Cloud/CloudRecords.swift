@@ -8,6 +8,12 @@ import Foundation
 enum CloudRecords {
     static let containerID = "iCloud.com.yearfilm.app"
 
+    /// False in builds without the iCloud entitlement (unsigned, as in CI), where touching
+    /// CloudKit would crash. Set by YF_CLOUDKIT in project.yml.
+    static var isAvailable: Bool {
+        (Bundle.main.object(forInfoDictionaryKey: "YFCloudKit") as? String)?.uppercased() == "YES"
+    }
+
     enum Kind: String, CaseIterable, Sendable {
         case clip = "Clip"
         case note = "VoiceNote"

@@ -1,5 +1,9 @@
 # Data model
 
+> **Superseded for storage (2026-10-20):** footage and voice notes now stay on the phone and
+> sync through the user's own iCloud — see [storage-plan.md](storage-plan.md). The server
+> tables and storage layout below describe the earlier design and aren't deployed.
+
 ```
 family ─┬─ family_members   (logins: producer / contributor / viewer)
         ├─ cast_members     (people on screen; credits; face consent)

@@ -96,6 +96,7 @@ the Review Guidelines three times in 2026 (February, June, October).
 
 - [ ] Real app icon, without transparency
 - [ ] `DEVELOPMENT_TEAM` set; bundle ID `com.yearfilm.app` registered
+- [ ] iCloud container `iCloud.com.yearfilm.app` created; CloudKit schema deployed to Production (docs/storage-plan.md)
 - [ ] Age-rating questionnaire answered
 - [ ] Privacy label = Data Not Collected (re-check against the code)
 - [ ] Privacy and support URLs live on yearfilm.com

@@ -88,6 +88,23 @@ shared film.
 - Removing a clip queues a CloudKit delete. **Delete iCloud backup** is separate from Delete
   all my data, and says plainly that deleting a shared year ends that film for everyone in it.
 
+## Before TestFlight
+
+Record types created by a development build exist only in CloudKit's Development
+environment; TestFlight and App Store builds use Production, where saves fail until the
+schema is deployed.
+
+1. Create the container `iCloud.com.yearfilm.app` in the developer account.
+2. Set `DEVELOPMENT_TEAM` in `ios/project.yml`.
+3. Run a signed build once and use backup and an invite, so the `Clip`, `VoiceNote` and
+   `FilmInfo` record types and their fields are created.
+4. CloudKit Console → Deploy Schema Changes to Production, then upload to TestFlight.
+5. Switch `aps-environment` to `production` for release builds.
+
+Unsigned builds (`CODE_SIGNING_ALLOWED=NO`, as in CI) have no iCloud entitlement and would
+crash in `CKContainer`; they build with `YF_CLOUDKIT=NO`, which keeps CloudKit off and says
+so in Settings.
+
 ## Build order
 
 1. Remove the server media path (web, Supabase, iOS) and restore the on-device privacy text.

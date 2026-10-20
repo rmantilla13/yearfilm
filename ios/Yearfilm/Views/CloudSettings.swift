@@ -72,7 +72,7 @@ struct FamilySection: View {
                 Button(family.sending ? "Sending…" : "Send my clips now") { Task { await family.send() } }
                     .disabled(family.sending)
                 Button("Leave this film", role: .destructive) { confirmLeave = true }
-            } else if CloudBackup.shared.isOn {
+            } else if CloudBackup.shared.isOn && CloudRecords.isAvailable {
                 Toggle("Only certain weeks", isOn: $askForWeeks)
                 if askForWeeks {
                     WeekPicker(selection: $weeks, year: year)
@@ -114,7 +114,11 @@ struct FilmInvite: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         CKShareTransferRepresentation { invite in
-            .prepareShare(container: CKContainer(identifier: CloudRecords.containerID)) {
+            .prepareShare(
+                container: CKContainer(identifier: CloudRecords.containerID),
+                // Invited people only, who can add clips: no "anyone with the link" option.
+                allowedSharingOptions: CKAllowedSharingOptions(allowedParticipantPermissionOptions: .readWrite, allowedParticipantAccessOptions: .specifiedRecipientsOnly)
+            ) {
                 try await FamilyShare.shared.share(year: invite.year, familyName: invite.familyName, weeks: invite.weeks)
             }
         }

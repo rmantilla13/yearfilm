@@ -2,6 +2,7 @@ import CloudKit
 import Foundation
 import Observation
 import SwiftData
+import UIKit
 
 /// Backs the library up to the person's own iCloud (private database, one zone per film year),
 /// and restores it on a new phone with the same Apple ID. Relatives' clips added through a
@@ -100,7 +101,13 @@ final class CloudBackup {
     // MARK: Engine
 
     private func start() {
+        guard CloudRecords.isAvailable else {
+            status = .failed("iCloud isn’t available in this build.")
+            return
+        }
         status = .starting
+        // CloudKit pushes changes so backups and relatives' clips arrive without opening the app.
+        UIApplication.shared.registerForRemoteNotifications()
         let container = CKContainer(identifier: CloudRecords.containerID)
         let database = container.privateCloudDatabase
         self.database = database

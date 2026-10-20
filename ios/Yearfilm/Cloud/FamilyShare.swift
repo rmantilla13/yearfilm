@@ -49,8 +49,8 @@ final class FamilyShare {
         let shareID = CKRecord.ID(recordName: CKRecordNameZoneWideShare, zoneID: zoneID)
         let share = (try? await database.record(for: shareID) as? CKShare) ?? CKShare(recordZoneID: zoneID)
         share[CKShare.SystemFieldKey.title] = "\(familyName)’s \(year) film" as NSString
-        // Anyone with the link can add to this year's film, like the invite links before.
-        share.publicPermission = .readWrite
+        // Only the people the producer invites can join: a forwarded link opens nothing for anyone else.
+        share.publicPermission = .none
 
         let results = try await database.modifyRecords(saving: [info, share], deleting: [], savePolicy: .allKeys)
         guard case .success(let saved as CKShare) = results.saveResults[shareID] else {
@@ -72,6 +72,7 @@ final class FamilyShare {
 
     /// The system hands the app an accepted invite (see SceneDelegate).
     func accept(_ metadata: CKShare.Metadata) async {
+        guard CloudRecords.isAvailable else { return }
         do {
             _ = try await cloud.accept(metadata)
             let zoneID = metadata.share.recordID.zoneID
@@ -93,7 +94,7 @@ final class FamilyShare {
     /// Sends this person's clips and notes for the family film: their own, from that year and the
     /// weeks asked for, that haven't been sent yet. Safe to call often.
     func send() async {
-        guard var joined = membership, !sending, let context = container?.mainContext else { return }
+        guard CloudRecords.isAvailable, var joined = membership, !sending, let context = container?.mainContext else { return }
         sending = true
         defer { sending = false }
 
