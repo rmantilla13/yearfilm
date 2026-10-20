@@ -51,7 +51,16 @@ a { color: inherit; }
 
 /* Nav */
 .nav { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
-.mark { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.01em; text-decoration: none; }
+.mark { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.01em; text-decoration: none; display: inline-flex; align-items: center; }
+/* The mark: light swirling into the pool around one memory (public/brand, from scripts/brand-mark.swift). */
+.mark::before {
+  content: '';
+  width: 30px;
+  height: 30px;
+  margin-right: 10px;
+  background: url('/brand/mark.png') center / contain no-repeat;
+  filter: drop-shadow(0 0 10px var(--glow-soft));
+}
 .mark span { color: var(--glow); text-shadow: 0 0 18px var(--glow-soft); }
 .nav a.small { color: var(--ink-2); font-size: 15px; text-decoration: none; }
 .nav a.small:hover { color: var(--ink); }

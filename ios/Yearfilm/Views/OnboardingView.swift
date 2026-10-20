@@ -39,6 +39,16 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
             VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 10) {
+                    Image("Mark")
+                        .resizable()
+                        .frame(width: 34, height: 34)
+                        .accessibilityHidden(true)
+                    (Text("year") + Text("film").foregroundStyle(Color.glow))
+                        .font(.system(.title3, design: .serif))
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Yearfilm")
                 Text("Your family’s year,\nmade into a film.")
                     .font(.system(.largeTitle, design: .serif))
                 Text("Film a little every week. In December, sit down together and watch the movie of your year — cut, scored, and narrated in your own words.")
