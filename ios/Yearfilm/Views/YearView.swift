@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftData
 import SwiftUI
 
@@ -20,16 +21,35 @@ struct YearView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 24) {
+                    HStack(alignment: .bottom) {
+                        ScreenHeader(eyebrow: year == Self.thisYear ? "Your film" : "Earlier footage", title: String(year))
+                        if years.count > 1 {
+                            Menu {
+                                Picker("Year", selection: $year) {
+                                    ForEach(years, id: \.self) { Text(String($0)).tag($0) }
+                                }
+                            } label: {
+                                Label("Year", systemImage: "chevron.up.chevron.down")
+                                    .labelStyle(.iconOnly)
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(width: 40, height: 40)
+                                    .glassCapsule()
+                            }
+                            .accessibilityLabel("Choose a year")
+                        }
+                    }
+
                     if year == Self.thisYear {
                         PremiereCard(year: year)
                     } else {
                         EarlierYearCard(year: year)
                     }
 
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("\(filmedWeeks.count) of \(weeksSoFar) weeks filmed")
-                            .font(.headline)
+                    RoughCutCard(clips: yearClips) { showingRoughCut = true }
+
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle(title: "52 weeks", detail: "\(filmedWeeks.count) of \(weeksSoFar) filmed")
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
                             ForEach(1...FilmWeek.count, id: \.self) { w in
                                 let week = FilmWeek(year: year, week: w)
@@ -40,8 +60,8 @@ struct YearView: View {
                             }
                         }
                     }
-                    .padding(16)
-                    .glassCard()
+                    .padding(18)
+                    .glassCard(cornerRadius: 22)
 
                     HStack(spacing: 12) {
                         Stat(value: "\(yearClips.count)", label: "clips")
@@ -49,28 +69,91 @@ struct YearView: View {
                         Stat(value: "\(notes.filter { $0.year == year }.count)", label: "voice notes")
                     }
                 }
-                .padding()
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
             }
             .memoryPoolBackground()
             .safeAreaInset(edge: .bottom) { ImportProgressCard() }
-            .navigationTitle(String(year))
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Rough cut", systemImage: "film.stack") { showingRoughCut = true }
-                        .disabled(yearClips.isEmpty)
-                }
-                if years.count > 1 {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Picker("Year", selection: $year) {
-                            ForEach(years, id: \.self) { Text(String($0)).tag($0) }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: FilmWeek.self) { WeekDetailView(week: $0) }
             .fullScreenCover(isPresented: $showingRoughCut) { RoughCutView(year: year) }
         }
+    }
+}
+
+/// The payoff, up front: a few frames of the year so far and a way to watch them cut together.
+struct RoughCutCard: View {
+    let clips: [Clip]
+    let watch: () -> Void
+
+    /// Up to five clips spread across the year, for the fanned-out frames.
+    private var sample: [Clip] {
+        let sorted = clips.sorted { $0.capturedOn < $1.capturedOn }
+        guard sorted.count > 5 else { return sorted }
+        return (0..<5).map { sorted[$0 * sorted.count / 5] }
+    }
+
+    var body: some View {
+        Button(action: watch) {
+            HStack(spacing: 14) {
+                ZStack {
+                    if sample.isEmpty {
+                        RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.06)).frame(width: 72, height: 46)
+                    }
+                    ForEach(Array(sample.enumerated()), id: \.element.id) { i, clip in
+                        FrameThumb(url: clip.url)
+                            .rotationEffect(.degrees(Double(i - sample.count / 2) * 7))
+                            .offset(x: CGFloat(i - sample.count / 2) * 5)
+                    }
+                }
+                .frame(width: 84, height: 72)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("ROUGH CUT")
+                        .font(.caption.weight(.semibold))
+                        .tracking(1.6)
+                        .foregroundStyle(Color.glow)
+                    Text(clips.isEmpty ? "Your year, so far" : "Watch your year so far")
+                        .font(.system(.title3, design: .serif))
+                    Text(clips.isEmpty ? "Film a few weeks and it appears here." : "\(clips.count) \(clips.count == 1 ? "clip" : "clips") so far")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                if !clips.isEmpty {
+                    Image(systemName: "play.fill")
+                        .font(.headline)
+                        .foregroundStyle(Color.ground)
+                        .frame(width: 40, height: 40)
+                        .background(Color.glow, in: Circle())
+                        .softGlow(radius: 10, opacity: 0.5)
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: 22, tint: Color.glow.opacity(0.08))
+            .contentShape(RoundedRectangle(cornerRadius: 22))
+        }
+        .buttonStyle(.plain)
+        .disabled(clips.isEmpty)
+        .accessibilityHint(clips.isEmpty ? "" : "Cuts and plays the year so far")
+    }
+}
+
+private struct FrameThumb: View {
+    let url: URL
+    @State private var image: UIImage?
+
+    var body: some View {
+        ZStack {
+            Color.white.opacity(0.08)
+            if let image { Image(uiImage: image).resizable().scaledToFill() }
+        }
+        .frame(width: 72, height: 46)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.glow.opacity(0.4), lineWidth: 1))
+        .shadow(color: .black.opacity(0.5), radius: 6, y: 3)
+        .task(id: url) { image = await MovieInfo.thumbnail(url, maxSide: 200) }
     }
 }
 
@@ -85,7 +168,7 @@ struct PremiereCard: View {
                 .tracking(1.6)
                 .foregroundStyle(Color.glow)
             Text(Premiere.date(year: year), format: .dateTime.month(.wide).day())
-                .font(.system(.largeTitle, design: .serif))
+                .font(.system(size: 38, weight: .regular, design: .serif))
             Text(days > 0 ? "\(days) days of filming left" : days == 0 ? "Tonight." : "Your \(String(year)) film is ready.")
                 .foregroundStyle(.secondary)
         }
@@ -106,7 +189,7 @@ struct EarlierYearCard: View {
                 .tracking(1.6)
                 .foregroundStyle(Color.glow)
             Text(String(year))
-                .font(.system(.largeTitle, design: .serif))
+                .font(.system(size: 38, weight: .regular, design: .serif))
             Text("Clips filmed in \(String(year)), kept with the rest of your memories.")
                 .foregroundStyle(.secondary)
         }
@@ -156,6 +239,7 @@ struct WeekDetailView: View {
     @Query private var clips: [Clip]
     @Query private var notes: [VoiceNote]
     @State private var playing: Clip?
+    @State private var picked: [PhotosPickerItem] = []
     @Environment(\.modelContext) private var context
 
     init(week: FilmWeek) {
@@ -166,25 +250,33 @@ struct WeekDetailView: View {
     }
 
     var body: some View {
-        List {
-            Section("Shot to try") { Text(ShotPrompt.forWeek(week)) }
-            Section("Clips") {
-                if clips.isEmpty { Text("Nothing filmed this week.").foregroundStyle(.secondary) }
-                ForEach(clips) { clip in
-                    Button { playing = clip } label: { ClipRow(clip: clip) }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("Remove from your film", systemImage: "trash", role: .destructive) {
-                                Library.remove(clip, from: context)
-                            }
-                        }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                ScreenHeader(eyebrow: "\(week.season().title) · \(week.dateRange())", title: "Week \(week.week)")
+                    .padding(.horizontal, 20)
+                PromptCard(week: week)
+                    .padding(.horizontal, 20)
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionTitle(title: "Clips", detail: clips.isEmpty ? "Nothing filmed" : "\(clips.count) \(clips.count == 1 ? "clip" : "clips")")
+                        .padding(.horizontal, 20)
+                    Filmstrip(clips: clips, picked: $picked) { playing = $0 }
                 }
-                .onDelete { offsets in offsets.map { clips[$0] }.forEach { Library.remove($0, from: context) } }
+                VStack(alignment: .leading, spacing: 12) {
+                    SectionTitle(title: notes.count > 1 ? "Voice notes" : "Voice note")
+                    // Notes are filed under the week they're recorded in, so only this week records.
+                    VoiceNoteSection(notes: notes, canRecord: week == FilmWeek(date: .now))
+                }
+                .padding(.horizontal, 20)
             }
-            Section("Voice notes") { VoiceNoteSection(notes: notes) }
+            .padding(.bottom, 40)
         }
         .memoryPoolBackground()
-        .navigationTitle("Week \(week.week)")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: picked) { _, items in
+            guard !items.isEmpty else { return }
+            BulkImporter.shared.add(items, into: context)
+            picked = []
+        }
         .sheet(item: $playing) { ClipPlayer(url: $0.url) }
     }
 }
