@@ -1,0 +1,68 @@
+# XcodeGen spec. The .xcodeproj is generated, never committed:
+#   brew install xcodegen && cd ios && xcodegen generate && open Yearfilm.xcodeproj
+name: Yearfilm
+options:
+  bundleIdPrefix: com.yearfilm
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Set to your Apple Developer team ID (App Store Connect → Membership) to sign.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+targets:
+  Yearfilm:
+    type: application
+    platform: iOS
+    sources:
+      - path: Yearfilm
+    info:
+      path: Yearfilm/Info.plist
+      properties:
+        CFBundleDisplayName: Yearfilm
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.photography
+        UILaunchScreen:
+          UIColorName: Ground
+          UIImageRespectsSafeAreaInsets: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # Purpose strings say what the access is FOR, in the user's terms (Guideline 5.1.1).
+        NSMicrophoneUsageDescription: Yearfilm records your weekly voice note, which becomes the narration of your family's film.
+        # The app uses only HTTPS / system encryption: exempt from export documentation.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yearfilm.app
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        ENABLE_PREVIEWS: YES
+  YearfilmTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: YearfilmTests
+    dependencies:
+      - target: Yearfilm
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.yearfilm.app.tests
+schemes:
+  Yearfilm:
+    build:
+      targets:
+        Yearfilm: all
+        YearfilmTests: [test]
+    test:
+      targets:
+        - YearfilmTests

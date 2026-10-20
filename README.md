@@ -1,6 +1,26 @@
 # yearfilm
 
-A year of family footage in, a film for the holidays out.
+A year of family footage in, a film for the holidays out. [yearfilm.com](https://yearfilm.com)
+
+| Directory | What it is |
+|---|---|
+| `engine/` | The editing engine (Python + ffmpeg): footage, voice notes and music in, a film out |
+| `app/`, `lib/` | yearfilm.com: landing page, waitlist, privacy policy and support pages (Next.js on Vercel) |
+| `ios/` | The iPhone app (SwiftUI): weekly capture, voice notes, the year at a glance |
+| `docs/` | Data model and [App Store compliance](docs/app-store-compliance.md) |
+
+**Web:** `npm install && npm run dev` at the repo root. Vercel builds it with default
+settings (Framework Preset: Next.js, Root Directory empty). The waitlist needs
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus the table in `supabase/waitlist.sql`.
+Without them, the form says the waitlist isn't open yet instead of losing the signup.
+
+**iOS:** `brew install xcodegen && cd ios && xcodegen generate && open Yearfilm.xcodeproj`.
+Needs Xcode 26 (App Store Connect requires the iOS 26 SDK). Set `DEVELOPMENT_TEAM` in
+`ios/project.yml` to sign. CI builds and tests it on every change under `ios/`.
+
+## The engine
+
+Everything below runs from `engine/`.
 
 This is the prototype that tests the core question: can a folder of everyday
 clips, voice notes and a few pieces of music become something that plays like
