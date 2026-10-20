@@ -32,6 +32,11 @@ struct ThisWeekView: View {
                     ForEach(clips) { clip in
                         Button { playing = clip } label: { ClipRow(clip: clip) }
                             .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Remove from your film", systemImage: "trash", role: .destructive) {
+                                Library.remove(clip, from: context)
+                            }
+                        }
                     }
                     .onDelete(perform: deleteClips)
 
@@ -83,12 +88,7 @@ struct ThisWeekView: View {
     }
 
     private func deleteClips(at offsets: IndexSet) {
-        for index in offsets {
-            let clip = clips[index]
-            MediaStore.remove(clip.url)
-            context.delete(clip)
-        }
-        try? context.save()
+        offsets.map { clips[$0] }.forEach { Library.remove($0, from: context) }
     }
 }
 

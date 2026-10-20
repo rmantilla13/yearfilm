@@ -33,10 +33,8 @@ struct VoiceNoteSection: View {
             for index in offsets {
                 let note = notes[index]
                 if player.playing == note.url { player.stop() }
-                MediaStore.remove(note.url)
-                context.delete(note)
+                Library.remove(note, from: context)
             }
-            try? context.save()
         }
 
         Group {

@@ -156,6 +156,7 @@ struct WeekDetailView: View {
     @Query private var clips: [Clip]
     @Query private var notes: [VoiceNote]
     @State private var playing: Clip?
+    @Environment(\.modelContext) private var context
 
     init(week: FilmWeek) {
         self.week = week
@@ -172,7 +173,13 @@ struct WeekDetailView: View {
                 ForEach(clips) { clip in
                     Button { playing = clip } label: { ClipRow(clip: clip) }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            Button("Remove from your film", systemImage: "trash", role: .destructive) {
+                                Library.remove(clip, from: context)
+                            }
+                        }
                 }
+                .onDelete { offsets in offsets.map { clips[$0] }.forEach { Library.remove($0, from: context) } }
             }
             Section("Voice notes") { VoiceNoteSection(notes: notes) }
         }

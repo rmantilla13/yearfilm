@@ -43,9 +43,27 @@ final class Uploader: NSObject {
     /// Reattaches to uploads the system kept running while the app was closed.
     func reconnect() { _ = session }
 
-    /// Starts whatever isn't backed up yet. Cheap to call often.
+    /// Takes something out of the backup: cancels its upload if one is running, and removes it
+    /// from Yearfilm's servers — now if possible, otherwise on a later sync.
+    func remove(kind: String, id: UUID, backedUp: Bool) {
+        // Something never backed up, on a phone with no account, has nothing on the server.
+        let mightBeUploaded = backedUp || Account.shared.isSignedIn || Self.arrived.contains(id)
+        Self.arrived.remove(id)
+        if mightBeUploaded {
+            var queue = Self.removals
+            queue[id.uuidString.lowercased()] = kind
+            Self.removals = queue
+        }
+        session.getAllTasks { tasks in
+            tasks.filter { UploadItem(encoded: $0.taskDescription)?.id == id }.forEach { $0.cancel() }
+        }
+        Task { await sync() }
+    }
+
+    /// Starts whatever isn't backed up yet, after sending any removals. Cheap to call often.
     func sync() async {
         guard let container else { return }
+        if Account.shared.isSignedIn { await sendRemovals() }
         // Only ask the server for what it will take: anything else would be refused on every sync.
         let all = Self.pendingItems(container.mainContext)
         let family = Account.shared.family
@@ -72,6 +90,28 @@ final class Uploader: NSObject {
     }
 
     // MARK: Steps
+
+    private struct Removal: Encodable {
+        let kind: String
+        let id: String
+    }
+
+    private struct Removed: Decodable { let removed: Bool }
+
+    private func sendRemovals() async {
+        for (id, kind) in Self.removals {
+            do {
+                let _: Removed = try await API.request("POST", "/api/uploads/remove", json: Removal(kind: kind, id: id))
+            } catch let failure as API.Failure where failure.status >= 400 && failure.status < 500 && failure.status != 401 {
+                // Refused for good (not ours to remove, say): nothing more to do from here.
+            } catch {
+                continue  // offline or signed out: keep it for the next sync
+            }
+            var queue = Self.removals
+            queue[id] = nil
+            Self.removals = queue
+        }
+    }
 
     private struct Presigned: Decodable {
         let method: String
@@ -143,6 +183,12 @@ final class Uploader: NSObject {
         let notes = (try? context.fetch(FetchDescriptor<VoiceNote>(predicate: #Predicate { $0.uploadedAt == nil }))) ?? []
         return clips.compactMap { UploadItem(kind: "footage", id: $0.id, file: $0.url, day: $0.capturedOn, week: $0.filmWeek, duration: $0.durationSeconds) }
             + notes.compactMap { UploadItem(kind: "voice_note", id: $0.id, file: $0.url, day: $0.recordedOn, week: $0.filmWeek, duration: $0.durationSeconds) }
+    }
+
+    /// Removals waiting to reach the server, id → kind; survives the app being killed.
+    private static var removals: [String: String] {
+        get { (UserDefaults.standard.dictionary(forKey: "uploadsToRemove") as? [String: String]) ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: "uploadsToRemove") }
     }
 
     /// Uploaded but not yet recorded by the server; survives the app being killed in between.
