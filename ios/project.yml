@@ -6,10 +6,6 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
-packages:
-  Supabase:
-    url: https://github.com/supabase/supabase-swift
-    from: 2.0.0
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -24,13 +20,14 @@ targets:
     platform: iOS
     sources:
       - path: Yearfilm
-    dependencies:
-      - package: Supabase
-        product: Supabase
+    # iCloud backup and family sharing (docs/storage-plan.md). The container must exist in the
+    # developer account, and CloudKit only works in a signed build.
     entitlements:
       path: Yearfilm/Yearfilm.entitlements
       properties:
-        com.apple.developer.applesignin: [Default]
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.yearfilm.app]
+        com.apple.developer.icloud-services: [CloudKit]
+        aps-environment: development
     info:
       path: Yearfilm/Info.plist
       properties:
@@ -45,20 +42,18 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
         # Purpose strings say what the access is FOR, in the user's terms (Guideline 5.1.1).
         NSMicrophoneUsageDescription: Yearfilm records your weekly voice note, which becomes the narration of your family's film.
         # The app uses only HTTPS / system encryption: exempt from export documentation.
         ITSAppUsesNonExemptEncryption: false
-        # Invite links open the app: yearfilm://join/<token>. Universal links
-        # (https://www.yearfilm.com/join/…) need the team ID for apple-app-site-association.
-        CFBundleURLTypes:
-          - CFBundleURLName: com.yearfilm.app.invite
-            CFBundleURLSchemes: [yearfilm]
-        # Backup and accounts. The publishable key is meant for clients; row-level security
-        # and the web API's own checks are what protect the data.
-        YFAPIBaseURL: https://www.yearfilm.com
-        YFSupabaseURL: https://mfxidnpbdjtfxfuvviix.supabase.co
-        YFSupabaseKey: sb_publishable_6ozXu06SIqsmrmv0sySNxQ_a-Psa8fF
+        # Family invites are iCloud shares, accepted through the scene delegate.
+        CKSharingSupported: true
+        # CloudKit pushes changes so backups and relatives' clips arrive without opening the app.
+        UIBackgroundModes: [remote-notification]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yearfilm.app

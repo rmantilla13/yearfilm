@@ -1,3 +1,4 @@
+import CloudKit
 import CoreImage
 import Foundation
 import Testing
@@ -86,46 +87,6 @@ struct ReminderTests {
     }
 }
 
-struct UploadItemTests {
-    @Test func capturedOnIsTheLocalCalendarDay() {
-        // 11pm on Dec 31 in Los Angeles is already Jan 1 in UTC; the film must call it 2026.
-        var la = Calendar(identifier: .gregorian)
-        la.timeZone = TimeZone(identifier: "America/Los_Angeles")!
-        let lateNYE = la.date(from: DateComponents(year: 2026, month: 12, day: 31, hour: 23))!
-        #expect(UploadItem.localDay(lateNYE, calendar: la) == "2026-12-31")
-        #expect(UploadItem.localDay(lateNYE, calendar: utc) == "2027-01-01")
-    }
-}
-
-@MainActor
-struct InviteTests {
-    let token = "AbCdEfGhIjKlMnOpQrStUvWxYz012-_9"
-
-    @Test func readsBothLinkShapes() {
-        #expect(Account.PendingInvite(url: URL(string: "yearfilm://join/\(token)")!)?.token == token)
-        #expect(Account.PendingInvite(url: URL(string: "https://www.yearfilm.com/join/\(token)")!)?.token == token)
-    }
-
-    @Test func ignoresAnythingElse() {
-        #expect(Account.PendingInvite(url: URL(string: "yearfilm://join/short")!) == nil)
-        #expect(Account.PendingInvite(url: URL(string: "yearfilm://other/\(token)")!) == nil)
-        #expect(Account.PendingInvite(url: URL(string: "https://www.yearfilm.com/join/\(token)/extra")!) == nil)
-    }
-
-    @Test func weekLimitedContributorsOnlySendTheirWeeks() throws {
-        let json = #"{"id":"0b4e7a52-6c1f-4a8e-9a3d-2f6b1c9e8d70","name":"The Garcias","role":"contributor","weeks":[47,48],"year":2026}"#
-        let family = try JSONDecoder().decode(Account.Family.self, from: Data(json.utf8))
-        #expect(family.allows(FilmWeek(year: 2026, week: 48)))
-        #expect(!family.allows(FilmWeek(year: 2026, week: 11)))
-        #expect(!family.allows(FilmWeek(year: 2025, week: 48)))
-    }
-
-    @Test func weeksReadLikeTheWebsite() {
-        #expect(weeksLabel(nil, year: nil) == "any week")
-        #expect(weeksLabel([30], year: 2026) == "week 30 of 2026")
-        #expect(weeksLabel([1, 2, 3, 10, 12, 13], year: nil) == "weeks 1–3, 10, 12–13")
-    }
-}
 
 struct RoughCutPlanTests {
     private func clip(_ m: Int, _ d: Int, seconds: Double = 10) -> RoughCutPlan.Source {
@@ -195,5 +156,63 @@ struct FramingTests {
         #expect(RoughCut.frame(portrait, orientation: .right, in: tv).extent == CGRect(origin: .zero, size: tv))
         let square = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 500, height: 500))
         #expect(RoughCut.frame(square, orientation: .up, in: tv).extent == CGRect(origin: .zero, size: tv))
+    }
+}
+
+struct CloudRecordTests {
+    private let item = CloudRecords.Item(
+        kind: .clip, id: UUID(), date: day(2026, 11, 26), duration: 6.5, year: 2026, week: 48, ext: "mov", addedBy: nil
+    )
+
+    @Test func eachYearIsItsOwnZone() {
+        let zone = CloudRecords.zoneID(year: 2026)
+        #expect(zone.zoneName == "Film-2026")
+        #expect(CloudRecords.year(of: zone) == 2026)
+        #expect(CloudRecords.year(of: CKRecordZone.ID(zoneName: "Other")) == nil)
+    }
+
+    @Test func recordsRoundTrip() {
+        let id = CloudRecords.recordID(.clip, item.id, year: 2026)
+        #expect(CloudRecords.parse(id)?.id == item.id)
+        #expect(CloudRecords.parse(id)?.kind == .clip)
+        let record = CKRecord(recordType: CloudRecords.Kind.clip.rawValue, recordID: id)
+        CloudRecords.fill(record, with: item, file: nil)
+        #expect(CloudRecords.item(from: record) == item)
+    }
+
+    @Test func filmInfoRoundTrips() {
+        let record = CKRecord(recordType: CloudRecords.filmInfoName, recordID: CKRecord.ID(recordName: CloudRecords.filmInfoName, zoneID: CloudRecords.zoneID(year: 2026)))
+        let info = CloudRecords.FilmInfo(familyName: "The Garcias", year: 2026, weeks: [48, 47])
+        CloudRecords.fill(record, with: info)
+        #expect(CloudRecords.filmInfo(from: record) == CloudRecords.FilmInfo(familyName: "The Garcias", year: 2026, weeks: [47, 48]))
+    }
+
+    @Test func systemFieldsSurviveEncoding() {
+        let record = CKRecord(recordType: "Clip", recordID: CloudRecords.recordID(.clip, item.id, year: 2026))
+        let back = CloudRecords.record(fromSystemFields: CloudRecords.systemFields(of: record))
+        #expect(back?.recordID == record.recordID)
+        #expect(CloudRecords.record(fromSystemFields: nil) == nil)
+    }
+
+    @Test func relativesSendOnlyTheirOwnClipsFromTheWeeksAskedFor() {
+        let info = CloudRecords.FilmInfo(familyName: "The Garcias", year: 2026, weeks: [47, 48])
+        var fromSomeoneElse = item
+        fromSomeoneElse.addedBy = "Ana"
+        let otherWeek = CloudRecords.Item(kind: .clip, id: UUID(), date: day(2026, 3, 14), duration: 3, year: 2026, week: 11, ext: "mov")
+        let lastYear = CloudRecords.Item(kind: .clip, id: UUID(), date: day(2025, 11, 26), duration: 3, year: 2025, week: 48, ext: "mov")
+        #expect(CloudRecords.toShare([item, fromSomeoneElse, otherWeek, lastYear], for: info) == [item])
+        let wholeYear = CloudRecords.FilmInfo(familyName: "x", year: 2026, weeks: nil)
+        #expect(CloudRecords.toShare([item, otherWeek], for: wholeYear).count == 2)
+    }
+
+    @Test func restoreAddsEachMissingItemOnce() {
+        let other = CloudRecords.Item(kind: .note, id: UUID(), date: .now, duration: 20, year: 2026, week: 42, ext: "m4a")
+        #expect(CloudRecords.newItems([item, other, other], known: [item.id]) == [other])
+    }
+
+    @Test func weeksReadLikeAPerson() {
+        #expect(weeksLabel(nil, year: nil) == "any week")
+        #expect(weeksLabel([30], year: 2026) == "week 30 of 2026")
+        #expect(weeksLabel([1, 2, 3, 10, 12, 13], year: nil) == "weeks 1–3, 10, 12–13")
     }
 }

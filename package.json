@@ -9,12 +9,9 @@
     "test": "node --test --experimental-strip-types lib/*.test.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.118.0",
-    "@vercel/blob": "^2.8.2",
     "next": "16.4.2",
     "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "server-only": "^0.0.1"
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@types/node": "^22",

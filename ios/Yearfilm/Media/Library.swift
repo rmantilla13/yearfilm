@@ -1,23 +1,23 @@
 import Foundation
 import SwiftData
 
-/// Taking things out of the film. One place for it, so the copy on this iPhone, an upload
-/// still in flight and the backup on Yearfilm's servers all go together.
+/// Taking things out of the film. One place for it, so the copy on this iPhone and the one in
+/// the iCloud backup go together.
 @MainActor
 enum Library {
     static func remove(_ clip: Clip, from context: ModelContext) {
-        let id = clip.id, backedUp = clip.uploadedAt != nil
+        let id = clip.id, year = clip.year, backedUp = clip.backedUpAt != nil
         MediaStore.remove(clip.url)
         context.delete(clip)
         try? context.save()
-        Uploader.shared.remove(kind: "footage", id: id, backedUp: backedUp)
+        CloudBackup.shared.removed(.clip, id: id, year: year, wasBackedUp: backedUp)
     }
 
     static func remove(_ note: VoiceNote, from context: ModelContext) {
-        let id = note.id, backedUp = note.uploadedAt != nil
+        let id = note.id, year = note.year, backedUp = note.backedUpAt != nil
         MediaStore.remove(note.url)
         context.delete(note)
         try? context.save()
-        Uploader.shared.remove(kind: "voice_note", id: id, backedUp: backedUp)
+        CloudBackup.shared.removed(.note, id: id, year: year, wasBackedUp: backedUp)
     }
 }

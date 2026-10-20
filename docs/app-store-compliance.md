@@ -25,7 +25,7 @@ the Review Guidelines three times in 2026 (February, June, October).
 | Item | Value / action |
 |---|---|
 | **Age rating questionnaire** (new system; answers were required by Jan 31, 2026) | Answer every question. No user-generated content is shared between users in v1, no chat, no AI assistant → expect 4+. Revisit when family sharing ships (that is UGC under 1.2). |
-| **Privacy nutrition label** | "Data Not Collected" is accurate for v1: everything stays on the device. Must change the day uploads or accounts ship. |
+| **Privacy nutrition label** | "Data Not Collected": footage stays on the device, and optional backup and family sharing go to the user's own iCloud (CloudKit), which the developer can't read. Confirm this reading of "collected" for shared zones before submitting. Must change the day anything goes to a Yearfilm server. |
 | **Privacy Policy URL** | https://yearfilm.com/privacy (`web/app/privacy/page.tsx`) |
 | **Support URL** | https://yearfilm.com/support (`web/app/support/page.tsx`) |
 | **Category** | Photo & Video |
@@ -44,8 +44,9 @@ the Review Guidelines three times in 2026 (February, June, October).
 - **No photo library permission at all.** `PhotosPicker` runs out of process and hands
   over only the picked videos; capture dates are read from the file itself
   (`MovieInfo.read`), not from `PHAsset`. ✅
-- **Account deletion (5.1.1(v))**: v1 has no accounts. Settings → *Delete all my data*
-  removes every clip and note. **When accounts ship, account deletion must be possible
+- **Account deletion (5.1.1(v))**: there are no Yearfilm accounts; iCloud is the identity.
+  Settings → *Delete all my data* removes every clip and note on the phone, and Settings →
+  iCloud → *Delete iCloud backup* removes the backup. **If accounts ever ship, account deletion must be possible
   inside the app** and must delete server data too, not just sign out.
 
 **5.1.2(i) Sharing data with third parties, including third-party AI** (Nov 2025)
