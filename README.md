@@ -14,6 +14,13 @@ settings (Framework Preset: Next.js, Root Directory empty). The waitlist needs
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus the table in `supabase/waitlist.sql`.
 Without them, the form says the waitlist isn't open yet instead of losing the signup.
 
+**Backup (accounts + uploads):** the app signs in with Sign in with Apple through Supabase
+Auth, then uploads straight to the private Vercel Blob store `yearfilm-blob` with presigned
+PUTs from `/api/uploads`; `/api/uploads/complete` records each file and `/api/account`
+deletes an account and its family's files. Needs the tables in
+`supabase/migrations/`, the Blob store connected to the project (`BLOB_READ_WRITE_TOKEN`),
+and Supabase's Apple provider enabled with `com.yearfilm.app` as a client ID.
+
 **iOS:** `brew install xcodegen && cd ios && xcodegen generate && open Yearfilm.xcodeproj`.
 Needs Xcode 26 (App Store Connect requires the iOS 26 SDK). Set `DEVELOPMENT_TEAM` in
 `ios/project.yml` to sign. CI builds and tests it on every change under `ios/`.

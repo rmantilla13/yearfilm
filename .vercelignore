@@ -1,0 +1,5 @@
+# Only the website deploys. Keep secrets, the app and the engine out of the upload.
+.env*
+.claude/
+ios/
+engine/

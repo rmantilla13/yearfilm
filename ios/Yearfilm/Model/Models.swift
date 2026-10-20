@@ -12,6 +12,8 @@ final class Clip {
     var durationSeconds: Double
     var year: Int
     var week: Int
+    /// When the server recorded the backup; nil until then. Defaulted so existing stores migrate.
+    var uploadedAt: Date? = nil
 
     init(fileName: String, capturedOn: Date, durationSeconds: Double, calendar: Calendar = .current) {
         let filmWeek = FilmWeek(date: capturedOn, calendar: calendar)
@@ -37,6 +39,7 @@ final class VoiceNote {
     var durationSeconds: Double
     var year: Int
     var week: Int
+    var uploadedAt: Date? = nil
 
     init(fileName: String, recordedOn: Date = .now, durationSeconds: Double, calendar: Calendar = .current) {
         let filmWeek = FilmWeek(date: recordedOn, calendar: calendar)
