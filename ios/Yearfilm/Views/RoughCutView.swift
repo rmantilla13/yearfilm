@@ -16,6 +16,7 @@ struct RoughCutView: View {
     @State private var now = 0.0
     @State private var failure: String?
     @State private var observer: Any?
+    @State private var memories: [UIImage] = []
 
     var body: some View {
         NavigationStack {
@@ -34,14 +35,19 @@ struct RoughCutView: View {
                 } else if let failure {
                     note("Couldn’t make the cut", failure)
                 } else {
-                    VStack(spacing: 14) {
-                        ProgressView()
-                        Text("Cutting your year…").foregroundStyle(.secondary)
-                    }
+                    MixingMemories(images: memories)
+                        .overlay(alignment: .bottom) {
+                            Text("Cutting your year…")
+                                .font(.system(.title3, design: .serif))
+                                .foregroundStyle(.secondary)
+                                .padding(.bottom, 80)
+                        }
+                        .transition(.opacity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background { MemoryPool(intensity: player == nil ? 0.8 : 0.2) }
+            .background { MemoryPool(intensity: player == nil ? 0.9 : 0.2, center: UnitPoint(x: 0.5, y: 0.42)) }
+            .animation(.easeInOut(duration: 0.6), value: player == nil)
             .navigationTitle("Rough cut")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -69,8 +75,12 @@ struct RoughCutView: View {
         )
         self.plan = plan
         guard !plan.isEmpty else { return }
+        memories = await Self.thumbnails(for: plan)
         do {
-            let item = AVPlayerItem(url: try await RoughCut.export(plan))
+            // Let the memories swirl in for a moment even when the cut is quick to make.
+            async let cut = RoughCut.export(plan)
+            try? await Task.sleep(for: .seconds(2.5))
+            let item = AVPlayerItem(url: try await cut)
             let player = AVPlayer(playerItem: item)
             observer = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 10), queue: .main) { time in
                 MainActor.assumeIsolated { now = time.seconds }
@@ -88,6 +98,22 @@ struct RoughCutView: View {
             }
         } catch {
             failure = error.localizedDescription
+        }
+    }
+
+    /// A frame from up to 16 clips spread across the year, for the clips swirling into the pool.
+    private static func thumbnails(for plan: RoughCutPlan) async -> [UIImage] {
+        let shots = plan.pieces.compactMap { piece -> URL? in
+            if case .shot(let source, _, _) = piece { source.url } else { nil }
+        }
+        let picked = shots.count <= 16 ? shots : (0..<16).map { shots[$0 * shots.count / 16] }
+        return await withTaskGroup(of: (Int, UIImage?).self) { group in
+            for (i, url) in picked.enumerated() {
+                group.addTask { (i, await MovieInfo.thumbnail(url, maxSide: 240)) }
+            }
+            var found: [(Int, UIImage)] = []
+            for await (i, image) in group { if let image { found.append((i, image)) } }
+            return found.sorted { $0.0 < $1.0 }.map(\.1)
         }
     }
 
@@ -127,5 +153,75 @@ private struct ChapterCard: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
+    }
+}
+
+/// The cut being made: the year's clips spiral in toward the pool's center, shrinking and
+/// glowing as they near it, and dissolve into the light there. Holds still with Reduce Motion.
+private struct MixingMemories: View {
+    let images: [UIImage]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Seconds for one memory to fall from the rim into the center.
+    private let fall = 3.6
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            GeometryReader { geo in
+                let center = CGPoint(x: geo.size.width / 2, y: geo.size.height * 0.42)
+                let rim = min(geo.size.width, geo.size.height) * 0.46
+                ZStack {
+                    ForEach(images.indices, id: \.self) { i in
+                        memory(images[i], index: i, t: t, center: center, rim: rim)
+                    }
+                    core(t: t).position(center)
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .accessibilityElement()
+        .accessibilityLabel("Mixing your clips into the rough cut")
+    }
+
+    private func memory(_ image: UIImage, index i: Int, t: Double, center: CGPoint, rim: CGFloat) -> some View {
+        // Each memory is somewhere along its fall, staggered so they arrive one after another.
+        let phase = (t / fall + Double(i) / Double(max(images.count, 1))).truncatingRemainder(dividingBy: 1)
+        let pull = phase * phase  // drifts at the rim, then is drawn in faster and faster
+        let angle = Double(i) * 2.39996 + phase * 2.4 * .pi + t * 0.12
+        let r = Double(rim) * (1 - pull)
+        let dissolve = smoothstep(0.7, 1, phase)
+        return Image(uiImage: image)
+            .resizable()
+            .scaledToFill()
+            .frame(width: 96, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.glow.opacity(0.6), lineWidth: 1))
+            .rotationEffect(.radians((angle + .pi / 2) * 0.12))
+            .scaleEffect(1 - 0.8 * pull)
+            .softGlow(radius: 8 + 20 * pull, opacity: 0.25 + 0.6 * pull)
+            .blur(radius: 10 * dissolve)
+            .opacity(min(1, phase * 6) * (1 - dissolve))
+            .position(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r * 0.82)
+    }
+
+    /// The light everything falls into, breathing a little.
+    private func core(t: Double) -> some View {
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [Color.glow.opacity(0.55), .clear], center: .center, startRadius: 0, endRadius: 70))
+                .frame(width: 140, height: 140)
+            Circle()
+                .fill(.white)
+                .frame(width: 14, height: 14)
+                .softGlow(radius: 18, opacity: 1)
+        }
+        .scaleEffect(1 + 0.12 * sin(t * 2.6))
+        .allowsHitTesting(false)
+    }
+
+    private func smoothstep(_ a: Double, _ b: Double, _ x: Double) -> Double {
+        let t = min(max((x - a) / (b - a), 0), 1)
+        return t * t * (3 - 2 * t)
     }
 }

@@ -1,3 +1,4 @@
+import CoreImage
 import Foundation
 import Testing
 @testable import Yearfilm
@@ -173,5 +174,26 @@ struct RoughCutPlanTests {
 
     @Test func nothingFilmedMeansNothingToCut() {
         #expect(RoughCutPlan.make(clips: [], notes: [], calendar: utc).isEmpty)
+    }
+}
+
+struct FramingTests {
+    private let tv = CGSize(width: 1280, height: 720)
+
+    @Test func iPhonePortraitTransformsStandUpright() {
+        #expect(RoughCut.orientation(of: CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 1080, ty: 0)) == .right)
+        #expect(RoughCut.orientation(of: CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: 1920)) == .left)
+        #expect(RoughCut.orientation(of: CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: 1920, ty: 1080)) == .down)
+        #expect(RoughCut.orientation(of: .identity) == .up)
+    }
+
+    @Test func everyFrameIsExactly16x9() {
+        let landscape = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        // A portrait phone clip: landscape pixels plus a quarter turn.
+        let portrait = landscape
+        #expect(RoughCut.frame(landscape, orientation: .up, in: tv).extent == CGRect(origin: .zero, size: tv))
+        #expect(RoughCut.frame(portrait, orientation: .right, in: tv).extent == CGRect(origin: .zero, size: tv))
+        let square = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 500, height: 500))
+        #expect(RoughCut.frame(square, orientation: .up, in: tv).extent == CGRect(origin: .zero, size: tv))
     }
 }
