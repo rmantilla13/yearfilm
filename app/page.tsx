@@ -1,13 +1,14 @@
 import Link from 'next/link'
+import { MemoryPool } from './MemoryPool'
 import { WaitlistForm } from './WaitlistForm'
 
-// One frame per week, coloured by season, so the strip reads as a year going by.
+// One frame per week, tinted by season within the pool's blues, so the strip reads as a year going by.
 const SEASONS: [number, string, string][] = [
-  [9, '#3b4a63', '#7d93b5'],   // winter
-  [22, '#4f6b3e', '#a7c27a'],  // spring
-  [35, '#b0702c', '#f2c06b'],  // summer
-  [48, '#7a3b24', '#d47b48'],  // fall
-  [53, '#5a2430', '#c9615f'],  // holidays
+  [9, '#13243f', '#6f9fd8'],   // winter
+  [22, '#0f3036', '#5fc4bd'],  // spring
+  [35, '#123754', '#8fd6ff'],  // summer
+  [48, '#1d2649', '#8f9de6'],  // fall
+  [53, '#241d42', '#bfb0ff'],  // holidays
 ]
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -45,15 +46,18 @@ export default function Home() {
         </nav>
 
         <header className="hero">
-          <p className="eyebrow">Premiering on the holidays</p>
-          <h1>
-            Your family’s year, made into <em>a film</em>.
-          </h1>
-          <p className="lede">
-            Film a little every week. In December, sit down together and watch the movie of your
-            year — cut, scored, and narrated in your own words.
-          </p>
-          <WaitlistForm />
+          <MemoryPool />
+          <div className="hero-copy">
+            <p className="eyebrow">Premiering on the holidays</p>
+            <h1>
+              Your family’s year, made into <em>a film</em>.
+            </h1>
+            <p className="lede">
+              Film a little every week. In December, sit down together and watch the movie of your
+              year — cut, scored, and narrated in your own words.
+            </p>
+            <WaitlistForm />
+          </div>
         </header>
 
         <div className="reel" aria-hidden="true">
