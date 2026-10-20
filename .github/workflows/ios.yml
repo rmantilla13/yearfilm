@@ -1,0 +1,52 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', '.github/workflows/ios.yml']
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    # App Store Connect has required the Xcode 26 / iOS 26 SDK for uploads since April 28, 2026.
+    # CI builds with the same toolchain so "it builds" means "it can be uploaded".
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26'
+
+      - name: Toolchain
+        run: xcodebuild -version && xcrun --sdk iphonesimulator --show-sdk-version
+
+      - name: Generate project
+        run: brew install xcodegen && cd ios && xcodegen generate
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("^iPhone"))][0].udid')
+          echo "Using $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          xcodebuild test \
+            -project ios/Yearfilm.xcodeproj \
+            -scheme Yearfilm \
+            -destination "id=$UDID" \
+            CODE_SIGNING_ALLOWED=NO \
+            > xcodebuild.log 2>&1 || { grep -E "error:" xcodebuild.log | sort -u; tail -150 xcodebuild.log; exit 1; }
+          grep -E "warning:" xcodebuild.log | grep -v "/DerivedData/" | sort -u || true
+          grep -E "(Test run|Suite .* (passed|failed)|\*\* TEST)" xcodebuild.log | tail -30 || true

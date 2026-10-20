@@ -3,3 +3,9 @@ __pycache__/
 sample/
 out/
 *.timeline.json
+ios/*.xcodeproj/
+ios/build/
+xcuserdata/
+DerivedData/
+.DS_Store
+node_modules/
