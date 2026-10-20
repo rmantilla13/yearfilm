@@ -8,9 +8,8 @@ struct ThisWeekView: View {
     @Query(sort: \VoiceNote.recordedOn) private var allNotes: [VoiceNote]
 
     @State private var picked: [PhotosPickerItem] = []
-    @State private var importing = false
-    @State private var message: String?
     @State private var playing: Clip?
+    private let importer = BulkImporter.shared
 
     private var week: FilmWeek { FilmWeek(date: .now) }
     private var clips: [Clip] { allClips.filter { $0.filmWeek == week } }
@@ -37,12 +36,16 @@ struct ThisWeekView: View {
                     .onDelete(perform: deleteClips)
 
                     // PhotosPicker runs out of process: the app sees only what is picked,
-                    // so it needs no photo library permission at all.
-                    PhotosPicker(selection: $picked, maxSelectionCount: 20, matching: .videos) {
+                    // so it needs no photo library permission at all. No limit: pick a whole
+                    // year at once and each clip is filed under the week it was filmed.
+                    // `.current` hands over the original file, so its filming date survives.
+                    PhotosPicker(selection: $picked, maxSelectionCount: nil, matching: .videos, preferredItemEncoding: .current) {
                         Label("Add clips", systemImage: "plus.circle.fill")
                     }
                 } header: {
                     Text("Clips")
+                } footer: {
+                    Text("Add as many as you like, from any time. Each clip goes to the week it was filmed.")
                 }
 
                 Section {
@@ -53,6 +56,10 @@ struct ThisWeekView: View {
                     Text("Twenty seconds on what happened this week. In December, these become the narration.")
                 }
             }
+            .memoryPoolBackground(stir: importer.landing)
+            .overlay { FloatingMemories() }
+            .safeAreaInset(edge: .bottom) { ImportProgressCard() }
+            .animation(.smooth, value: importer.isRunning)
             .navigationTitle("Week \(week.week)")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -61,60 +68,18 @@ struct ThisWeekView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .overlay {
-                if importing {
-                    ProgressView("Adding clips…")
-                        .padding(24)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-                }
-            }
             .onChange(of: picked) { _, items in
-                Task { await importItems(items) }
+                guard !items.isEmpty else { return }
+                importer.add(items, into: context)
+                picked = []
             }
-            .alert("Clips added", isPresented: .constant(message != nil), presenting: message) { _ in
-                Button("OK") { message = nil }
-            } message: { text in
-                Text(text)
+            .sheet(item: Binding(get: { importer.summary }, set: { BulkImporter.shared.summary = $0 })) { summary in
+                ImportSummaryView(summary: summary)
             }
             .sheet(item: $playing) { clip in
                 ClipPlayer(url: clip.url)
             }
         }
-    }
-
-    @MainActor
-    private func importItems(_ items: [PhotosPickerItem]) async {
-        guard !items.isEmpty else { return }
-        importing = true
-        var added = 0, elsewhere = 0, failed = 0
-        for item in items {
-            do {
-                guard let movie = try await item.loadTransferable(type: PickedMovie.self) else {
-                    failed += 1
-                    continue
-                }
-                let info = await MovieInfo.read(MediaStore.footageURL(movie.fileName))
-                let clip = Clip(fileName: movie.fileName, capturedOn: info.capturedOn ?? .now, durationSeconds: info.duration)
-                context.insert(clip)
-                added += 1
-                if clip.filmWeek != week { elsewhere += 1 }
-            } catch {
-                failed += 1
-            }
-        }
-        try? context.save()
-        importing = false
-        picked = []
-
-        // Say where clips went: a clip filmed in March belongs to March's week, not this one.
-        var lines: [String] = []
-        if elsewhere > 0 {
-            lines.append("\(elsewhere) of \(added) were filmed in an earlier week and were added there. You’ll find them in Year.")
-        }
-        if failed > 0 {
-            lines.append("\(failed) couldn’t be added. If they’re in iCloud, try again once they’ve downloaded.")
-        }
-        if !lines.isEmpty { message = lines.joined(separator: "\n\n") }
     }
 
     private func deleteClips(at offsets: IndexSet) {
@@ -135,17 +100,14 @@ struct PromptCard: View {
             Text("SHOT TO TRY")
                 .font(.caption.weight(.semibold))
                 .tracking(1.6)
-                .foregroundStyle(Color.ember)
+                .foregroundStyle(Color.glow)
             Text(ShotPrompt.forWeek(week))
                 .font(.system(.title3, design: .serif))
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
-        .background(
-            LinearGradient(colors: [Color.ember.opacity(0.22), Color.ember.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 18)
-        )
+        .glassCard(cornerRadius: 18, tint: Color.glow.opacity(0.1))
     }
 }
 
