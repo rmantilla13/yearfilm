@@ -17,6 +17,8 @@ struct YearfilmApp: App {
         // Handed over, not started: neither touches iCloud until backup is on or a share is accepted.
         CloudBackup.shared.container = container
         FamilyShare.shared.container = container
+        // Compile the pool shader in the background now, rather than on the first frame.
+        PoolShader.shared.warmUp()
     }
 
     var body: some Scene {
@@ -34,13 +36,8 @@ struct YearfilmApp: App {
     }
 }
 
-/// Registers for CloudKit pushes and sets up the scene delegate that receives family invites.
+/// Sets up the scene delegate that receives family invites.
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        application.registerForRemoteNotifications()
-        return true
-    }
-
     func application(
         _ application: UIApplication,
         configurationForConnecting session: UISceneSession,
