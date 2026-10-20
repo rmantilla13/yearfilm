@@ -46,7 +46,7 @@ jobs:
             -project ios/Yearfilm.xcodeproj \
             -scheme Yearfilm \
             -destination "id=$UDID" \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_ALLOWED=NO YF_CLOUDKIT=NO \
             > xcodebuild.log 2>&1 || { grep -E "error:" xcodebuild.log | sort -u; tail -150 xcodebuild.log; exit 1; }
           grep -E "warning:" xcodebuild.log | grep -v "/DerivedData/" | sort -u || true
           grep -E "(Test run|Suite .* (passed|failed)|\*\* TEST)" xcodebuild.log | tail -30 || true

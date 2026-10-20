@@ -14,12 +14,23 @@ settings:
     # Set to your Apple Developer team ID (App Store Connect → Membership) to sign.
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
+    # CloudKit traps if the app runs without its iCloud entitlement, which unsigned builds
+    # (CODE_SIGNING_ALLOWED=NO, as in CI) don't have. Those builds pass YF_CLOUDKIT=NO.
+    YF_CLOUDKIT: "YES"
 targets:
   Yearfilm:
     type: application
     platform: iOS
     sources:
       - path: Yearfilm
+    # iCloud backup and family sharing (docs/storage-plan.md). The container must exist in the
+    # developer account, and CloudKit only works in a signed build.
+    entitlements:
+      path: Yearfilm/Yearfilm.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.yearfilm.app]
+        com.apple.developer.icloud-services: [CloudKit]
+        aps-environment: development
     info:
       path: Yearfilm/Info.plist
       properties:
@@ -34,10 +45,19 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
         # Purpose strings say what the access is FOR, in the user's terms (Guideline 5.1.1).
         NSMicrophoneUsageDescription: Yearfilm records your weekly voice note, which becomes the narration of your family's film.
         # The app uses only HTTPS / system encryption: exempt from export documentation.
         ITSAppUsesNonExemptEncryption: false
+        # Family invites are iCloud shares, accepted through the scene delegate.
+        CKSharingSupported: true
+        YFCloudKit: $(YF_CLOUDKIT)
+        # CloudKit pushes changes so backups and relatives' clips arrive without opening the app.
+        UIBackgroundModes: [remote-notification]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yearfilm.app

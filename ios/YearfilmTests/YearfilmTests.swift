@@ -1,3 +1,5 @@
+import CloudKit
+import CoreImage
 import Foundation
 import Testing
 @testable import Yearfilm
@@ -82,5 +84,135 @@ struct ReminderTests {
         let lateSunday = day(2026, 10, 25, hour: 19)
         let first = Reminders.dates(after: lateSunday, count: 1, calendar: utc)[0]
         #expect(first == utc.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 18))!)
+    }
+}
+
+
+struct RoughCutPlanTests {
+    private func clip(_ m: Int, _ d: Int, seconds: Double = 10) -> RoughCutPlan.Source {
+        .init(id: UUID(), url: URL(fileURLWithPath: "/c\(m)-\(d).mov"), capturedOn: day(2026, m, d), duration: seconds)
+    }
+
+    @Test func shotsRunInFilmedOrderWithACardPerSeason() {
+        let plan = RoughCutPlan.make(clips: [clip(7, 4), clip(1, 10), clip(1, 20)], notes: [], calendar: utc)
+        #expect(plan.chapters.map(\.season) == [.winter, .summer])
+        guard case .card(.winter, _) = plan.pieces[0], case .shot(let first, let from, let s) = plan.pieces[1] else {
+            Issue.record("expected a winter card, then a shot"); return
+        }
+        #expect(first.capturedOn == day(2026, 1, 10))
+        #expect(s == RoughCutPlan.shotSeconds)
+        #expect(from == (10 - RoughCutPlan.shotSeconds) / 2)  // from the middle of the clip
+        #expect(abs(plan.duration - (2 * RoughCutPlan.cardSeconds + 3 * RoughCutPlan.shotSeconds)) < 1e-9)
+    }
+
+    @Test func tooShortClipsAreLeftOutAndShortOnesKeptWhole() {
+        let plan = RoughCutPlan.make(clips: [clip(3, 1, seconds: 0.3), clip(3, 2, seconds: 1.5)], notes: [], calendar: utc)
+        #expect(plan.pieces.count == 2)
+        #expect(plan.pieces.last?.seconds == 1.5)
+    }
+
+    @Test func aBigYearIsSampledAcrossTheWholeYear() {
+        let clips = (1...12).flatMap { m in (1...20).map { clip(m, $0) } }
+        let plan = RoughCutPlan.make(clips: clips, notes: [], maxShots: 24, calendar: utc)
+        let shots = plan.pieces.filter { if case .shot = $0 { true } else { false } }
+        #expect(shots.count == 24)
+        #expect(Set(plan.chapters.map(\.season)) == Set(Season.allCases))
+    }
+
+    @Test func notesNarrateTheirWeekWithoutOverlapping() {
+        let jan10 = clip(1, 10), jan11 = clip(1, 11)
+        let week = FilmWeek(date: day(2026, 1, 10), calendar: utc)
+        let note = { RoughCutPlan.Note(id: UUID(), url: URL(fileURLWithPath: "/n.m4a"), week: $0, duration: 20) }
+        let plan = RoughCutPlan.make(
+            clips: [jan10, jan11],
+            notes: [note(week), note(FilmWeek(year: 2026, week: 30))],  // week 30 has no shots
+            calendar: utc
+        )
+        #expect(plan.narration.count == 1)
+        #expect(plan.narration[0].at == RoughCutPlan.cardSeconds)
+        #expect(abs(plan.narration[0].seconds - (plan.duration - RoughCutPlan.cardSeconds)) < 1e-9)  // trimmed to the cut
+    }
+
+    @Test func nothingFilmedMeansNothingToCut() {
+        #expect(RoughCutPlan.make(clips: [], notes: [], calendar: utc).isEmpty)
+    }
+}
+
+struct FramingTests {
+    private let tv = CGSize(width: 1280, height: 720)
+
+    @Test func iPhonePortraitTransformsStandUpright() {
+        #expect(RoughCut.orientation(of: CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 1080, ty: 0)) == .right)
+        #expect(RoughCut.orientation(of: CGAffineTransform(a: 0, b: -1, c: 1, d: 0, tx: 0, ty: 1920)) == .left)
+        #expect(RoughCut.orientation(of: CGAffineTransform(a: -1, b: 0, c: 0, d: -1, tx: 1920, ty: 1080)) == .down)
+        #expect(RoughCut.orientation(of: .identity) == .up)
+    }
+
+    @Test func everyFrameIsExactly16x9() {
+        let landscape = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 1920, height: 1080))
+        // A portrait phone clip: landscape pixels plus a quarter turn.
+        let portrait = landscape
+        #expect(RoughCut.frame(landscape, orientation: .up, in: tv).extent == CGRect(origin: .zero, size: tv))
+        #expect(RoughCut.frame(portrait, orientation: .right, in: tv).extent == CGRect(origin: .zero, size: tv))
+        let square = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 500, height: 500))
+        #expect(RoughCut.frame(square, orientation: .up, in: tv).extent == CGRect(origin: .zero, size: tv))
+    }
+}
+
+struct CloudRecordTests {
+    private let item = CloudRecords.Item(
+        kind: .clip, id: UUID(), date: day(2026, 11, 26), duration: 6.5, year: 2026, week: 48, ext: "mov", addedBy: nil
+    )
+
+    @Test func eachYearIsItsOwnZone() {
+        let zone = CloudRecords.zoneID(year: 2026)
+        #expect(zone.zoneName == "Film-2026")
+        #expect(CloudRecords.year(of: zone) == 2026)
+        #expect(CloudRecords.year(of: CKRecordZone.ID(zoneName: "Other")) == nil)
+    }
+
+    @Test func recordsRoundTrip() {
+        let id = CloudRecords.recordID(.clip, item.id, year: 2026)
+        #expect(CloudRecords.parse(id)?.id == item.id)
+        #expect(CloudRecords.parse(id)?.kind == .clip)
+        let record = CKRecord(recordType: CloudRecords.Kind.clip.rawValue, recordID: id)
+        CloudRecords.fill(record, with: item, file: nil)
+        #expect(CloudRecords.item(from: record) == item)
+    }
+
+    @Test func filmInfoRoundTrips() {
+        let record = CKRecord(recordType: CloudRecords.filmInfoName, recordID: CKRecord.ID(recordName: CloudRecords.filmInfoName, zoneID: CloudRecords.zoneID(year: 2026)))
+        let info = CloudRecords.FilmInfo(familyName: "The Garcias", year: 2026, weeks: [48, 47])
+        CloudRecords.fill(record, with: info)
+        #expect(CloudRecords.filmInfo(from: record) == CloudRecords.FilmInfo(familyName: "The Garcias", year: 2026, weeks: [47, 48]))
+    }
+
+    @Test func systemFieldsSurviveEncoding() {
+        let record = CKRecord(recordType: "Clip", recordID: CloudRecords.recordID(.clip, item.id, year: 2026))
+        let back = CloudRecords.record(fromSystemFields: CloudRecords.systemFields(of: record))
+        #expect(back?.recordID == record.recordID)
+        #expect(CloudRecords.record(fromSystemFields: nil) == nil)
+    }
+
+    @Test func relativesSendOnlyTheirOwnClipsFromTheWeeksAskedFor() {
+        let info = CloudRecords.FilmInfo(familyName: "The Garcias", year: 2026, weeks: [47, 48])
+        var fromSomeoneElse = item
+        fromSomeoneElse.addedBy = "Ana"
+        let otherWeek = CloudRecords.Item(kind: .clip, id: UUID(), date: day(2026, 3, 14), duration: 3, year: 2026, week: 11, ext: "mov")
+        let lastYear = CloudRecords.Item(kind: .clip, id: UUID(), date: day(2025, 11, 26), duration: 3, year: 2025, week: 48, ext: "mov")
+        #expect(CloudRecords.toShare([item, fromSomeoneElse, otherWeek, lastYear], for: info) == [item])
+        let wholeYear = CloudRecords.FilmInfo(familyName: "x", year: 2026, weeks: nil)
+        #expect(CloudRecords.toShare([item, otherWeek], for: wholeYear).count == 2)
+    }
+
+    @Test func restoreAddsEachMissingItemOnce() {
+        let other = CloudRecords.Item(kind: .note, id: UUID(), date: .now, duration: 20, year: 2026, week: 42, ext: "m4a")
+        #expect(CloudRecords.newItems([item, other, other], known: [item.id]) == [other])
+    }
+
+    @Test func weeksReadLikeAPerson() {
+        #expect(weeksLabel(nil, year: nil) == "any week")
+        #expect(weeksLabel([30], year: 2026) == "week 30 of 2026")
+        #expect(weeksLabel([1, 2, 3, 10, 12, 13], year: nil) == "weeks 1–3, 10, 12–13")
     }
 }

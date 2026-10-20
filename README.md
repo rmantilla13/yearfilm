@@ -14,6 +14,10 @@ settings (Framework Preset: Next.js, Root Directory empty). The waitlist needs
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus the table in `supabase/waitlist.sql`.
 Without them, the form says the waitlist isn't open yet instead of losing the signup.
 
+**Storage:** footage and voice notes stay on the phone. Backup and family sharing go through
+the user's own iCloud (CloudKit, container `iCloud.com.yearfilm.app`); Yearfilm runs no
+server that holds them. See [docs/storage-plan.md](docs/storage-plan.md).
+
 **iOS:** `brew install xcodegen && cd ios && xcodegen generate && open Yearfilm.xcodeproj`.
 Needs Xcode 26 (App Store Connect requires the iOS 26 SDK). Set `DEVELOPMENT_TEAM` in
 `ios/project.yml` to sign. CI builds and tests it on every change under `ios/`.

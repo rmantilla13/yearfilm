@@ -3,9 +3,10 @@
 <!--
   Privacy manifest. Keep it true to the code:
   - No tracking, no tracking domains.
-  - Collected data types are empty because nothing leaves the device in this version.
-    The day clips, voice notes or an account go to a server, add those types here AND
-    update the App Store privacy label AND yearfilm.com/privacy in the same change.
+  - Collected data types are empty: footage and voice notes stay on the device, and an
+    optional backup or family share goes to the user's own iCloud (CloudKit), which the
+    developer can't read. Any new data flow changes this file AND the App Store privacy
+    label AND yearfilm.com/privacy in the same change.
   - UserDefaults is read through @AppStorage for the app's own settings (CA92.1).
 -->
 <plist version="1.0">

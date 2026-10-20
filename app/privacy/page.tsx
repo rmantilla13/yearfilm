@@ -33,8 +33,8 @@ export default function Privacy() {
       <h2>The app</h2>
       <ul>
         <li>
-          <strong>Your videos and voice notes</strong> are stored on your device in the current
-          version. You choose each clip; the app never scans your photo library.
+          <strong>Your videos and voice notes</strong> stay on your device, and in your own iCloud
+          if you turn on backup. You choose each clip; the app never scans your photo library.
         </li>
         <li>
           <strong>Microphone</strong> is used only while you record a voice note.
@@ -47,6 +47,21 @@ export default function Privacy() {
           data brokers.
         </li>
       </ul>
+
+      <h2>iCloud backup and family</h2>
+      <p>
+        There is no Yearfilm account, and Yearfilm has no server that holds your videos or voice
+        notes. If you turn on iCloud backup, the app keeps a copy in your own iCloud, under your
+        Apple ID and your iCloud storage. Apple stores it; we can’t see it.
+      </p>
+      <p>
+        If you invite family to a year’s film, that year of your iCloud backup is shared with the
+        people who accept, through iCloud sharing. They can see it, and the clips they add from
+        that year go into it and use your iCloud storage. If someone invites you, the clips you
+        send — from that year, and the weeks they asked for — go into their iCloud, and they can
+        see them. The name you enter in Settings shows next to what you add. Nothing else on your
+        phone is sent.
+      </p>
 
       <h2>Third-party services, including AI</h2>
       <p>
@@ -65,9 +80,10 @@ export default function Privacy() {
 
       <h2>Deleting your data</h2>
       <p>
-        In the app, Settings → Delete all my data removes every clip, voice note and film from the
-        app. When accounts arrive, deleting your account from inside the app will delete your data
-        from our servers too.
+        In the app, Settings → Delete all my data removes every clip, voice note and film from your
+        iPhone. Settings → iCloud → Delete iCloud backup removes your backup from your iCloud, and
+        ends any year you shared for everyone in it. You can also manage it in your iPhone’s
+        Settings → your name → iCloud.
       </p>
 
       <h2>Children</h2>
