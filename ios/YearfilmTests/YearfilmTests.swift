@@ -84,3 +84,94 @@ struct ReminderTests {
         #expect(first == utc.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 18))!)
     }
 }
+
+struct UploadItemTests {
+    @Test func capturedOnIsTheLocalCalendarDay() {
+        // 11pm on Dec 31 in Los Angeles is already Jan 1 in UTC; the film must call it 2026.
+        var la = Calendar(identifier: .gregorian)
+        la.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        let lateNYE = la.date(from: DateComponents(year: 2026, month: 12, day: 31, hour: 23))!
+        #expect(UploadItem.localDay(lateNYE, calendar: la) == "2026-12-31")
+        #expect(UploadItem.localDay(lateNYE, calendar: utc) == "2027-01-01")
+    }
+}
+
+@MainActor
+struct InviteTests {
+    let token = "AbCdEfGhIjKlMnOpQrStUvWxYz012-_9"
+
+    @Test func readsBothLinkShapes() {
+        #expect(Account.PendingInvite(url: URL(string: "yearfilm://join/\(token)")!)?.token == token)
+        #expect(Account.PendingInvite(url: URL(string: "https://www.yearfilm.com/join/\(token)")!)?.token == token)
+    }
+
+    @Test func ignoresAnythingElse() {
+        #expect(Account.PendingInvite(url: URL(string: "yearfilm://join/short")!) == nil)
+        #expect(Account.PendingInvite(url: URL(string: "yearfilm://other/\(token)")!) == nil)
+        #expect(Account.PendingInvite(url: URL(string: "https://www.yearfilm.com/join/\(token)/extra")!) == nil)
+    }
+
+    @Test func weekLimitedContributorsOnlySendTheirWeeks() throws {
+        let json = #"{"id":"0b4e7a52-6c1f-4a8e-9a3d-2f6b1c9e8d70","name":"The Garcias","role":"contributor","weeks":[47,48],"year":2026}"#
+        let family = try JSONDecoder().decode(Account.Family.self, from: Data(json.utf8))
+        #expect(family.allows(FilmWeek(year: 2026, week: 48)))
+        #expect(!family.allows(FilmWeek(year: 2026, week: 11)))
+        #expect(!family.allows(FilmWeek(year: 2025, week: 48)))
+    }
+
+    @Test func weeksReadLikeTheWebsite() {
+        #expect(weeksLabel(nil, year: nil) == "any week")
+        #expect(weeksLabel([30], year: 2026) == "week 30 of 2026")
+        #expect(weeksLabel([1, 2, 3, 10, 12, 13], year: nil) == "weeks 1–3, 10, 12–13")
+    }
+}
+
+struct RoughCutPlanTests {
+    private func clip(_ m: Int, _ d: Int, seconds: Double = 10) -> RoughCutPlan.Source {
+        .init(id: UUID(), url: URL(fileURLWithPath: "/c\(m)-\(d).mov"), capturedOn: day(2026, m, d), duration: seconds)
+    }
+
+    @Test func shotsRunInFilmedOrderWithACardPerSeason() {
+        let plan = RoughCutPlan.make(clips: [clip(7, 4), clip(1, 10), clip(1, 20)], notes: [], calendar: utc)
+        #expect(plan.chapters.map(\.season) == [.winter, .summer])
+        guard case .card(.winter, _) = plan.pieces[0], case .shot(let first, let from, let s) = plan.pieces[1] else {
+            Issue.record("expected a winter card, then a shot"); return
+        }
+        #expect(first.capturedOn == day(2026, 1, 10))
+        #expect(s == RoughCutPlan.shotSeconds)
+        #expect(from == (10 - RoughCutPlan.shotSeconds) / 2)  // from the middle of the clip
+        #expect(abs(plan.duration - (2 * RoughCutPlan.cardSeconds + 3 * RoughCutPlan.shotSeconds)) < 1e-9)
+    }
+
+    @Test func tooShortClipsAreLeftOutAndShortOnesKeptWhole() {
+        let plan = RoughCutPlan.make(clips: [clip(3, 1, seconds: 0.3), clip(3, 2, seconds: 1.5)], notes: [], calendar: utc)
+        #expect(plan.pieces.count == 2)
+        #expect(plan.pieces.last?.seconds == 1.5)
+    }
+
+    @Test func aBigYearIsSampledAcrossTheWholeYear() {
+        let clips = (1...12).flatMap { m in (1...20).map { clip(m, $0) } }
+        let plan = RoughCutPlan.make(clips: clips, notes: [], maxShots: 24, calendar: utc)
+        let shots = plan.pieces.filter { if case .shot = $0 { true } else { false } }
+        #expect(shots.count == 24)
+        #expect(Set(plan.chapters.map(\.season)) == Set(Season.allCases))
+    }
+
+    @Test func notesNarrateTheirWeekWithoutOverlapping() {
+        let jan10 = clip(1, 10), jan11 = clip(1, 11)
+        let week = FilmWeek(date: day(2026, 1, 10), calendar: utc)
+        let note = { RoughCutPlan.Note(id: UUID(), url: URL(fileURLWithPath: "/n.m4a"), week: $0, duration: 20) }
+        let plan = RoughCutPlan.make(
+            clips: [jan10, jan11],
+            notes: [note(week), note(FilmWeek(year: 2026, week: 30))],  // week 30 has no shots
+            calendar: utc
+        )
+        #expect(plan.narration.count == 1)
+        #expect(plan.narration[0].at == RoughCutPlan.cardSeconds)
+        #expect(abs(plan.narration[0].seconds - (plan.duration - RoughCutPlan.cardSeconds)) < 1e-9)  // trimmed to the cut
+    }
+
+    @Test func nothingFilmedMeansNothingToCut() {
+        #expect(RoughCutPlan.make(clips: [], notes: [], calendar: utc).isEmpty)
+    }
+}
