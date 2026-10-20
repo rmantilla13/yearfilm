@@ -7,6 +7,8 @@ struct OnboardingView: View {
     @AppStorage("remindersOn") private var remindersOn = false
     @State private var page = 0
     @FocusState private var nameFocused: Bool
+    @State private var stir: Stir?
+    @State private var screen: CGSize = .zero
 
     var body: some View {
         TabView(selection: $page) {
@@ -15,55 +17,83 @@ struct OnboardingView: View {
             reminders.tag(2)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
-        .background(Color.ground.ignoresSafeArea())
+        .background {
+            MemoryPool(center: UnitPoint(x: 0.5, y: 0.42), stir: stir)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { screen = $0 }
+        }
+        // Touch the water and the wisps swirl around your finger. Simultaneous, so paging and
+        // the buttons work as usual.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                .onChanged { stir = Stir(point: unit($0.location), at: .now, holding: true) }
+                .onEnded { stir = Stir(point: unit($0.location), at: .now) }
+        )
+    }
+
+    private func unit(_ location: CGPoint) -> UnitPoint {
+        guard screen.width > 0, screen.height > 0 else { return .center }
+        return UnitPoint(x: location.x / screen.width, y: location.y / screen.height)
     }
 
     private var intro: some View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
-            Text("Your family’s year,\nmade into a film.")
-                .font(.system(.largeTitle, design: .serif))
-            Text("Film a little every week. In December, sit down together and watch the movie of your year — cut, scored, and narrated in your own words.")
-                .font(.title3)
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Your family’s year,\nmade into a film.")
+                    .font(.system(.largeTitle, design: .serif))
+                Text("Film a little every week. In December, sit down together and watch the movie of your year — cut, scored, and narrated in your own words.")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .onboardingCard()
+            Text("Touch the water.")
+                .font(.footnote)
                 .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
             Spacer()
             Button("Start") { withAnimation { page = 1 } }
                 .buttonStyle(PrimaryButton())
         }
-        .padding(28)
+        .padding(24)
         .padding(.bottom, 32)
     }
 
     private var name: some View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
-            Text("Whose film is it?")
-                .font(.system(.largeTitle, design: .serif))
-            Text("It goes on the title card.")
-                .foregroundStyle(.secondary)
-            TextField("The Garcias", text: $familyName)
-                .font(.title2)
-                .textInputAutocapitalization(.words)
-                .submitLabel(.next)
-                .focused($nameFocused)
-                .padding()
-                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
-                .onSubmit { withAnimation { page = 2 } }
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Whose film is it?")
+                    .font(.system(.largeTitle, design: .serif))
+                Text("It goes on the title card.")
+                    .foregroundStyle(.secondary)
+                TextField("The Garcias", text: $familyName)
+                    .font(.title2)
+                    .textInputAutocapitalization(.words)
+                    .submitLabel(.next)
+                    .focused($nameFocused)
+                    .padding()
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    .onSubmit { withAnimation { page = 2 } }
+            }
+            .onboardingCard()
             Spacer()
             Button("Next") { withAnimation { page = 2 } }
                 .buttonStyle(PrimaryButton())
         }
-        .padding(28)
+        .padding(24)
         .padding(.bottom, 32)
     }
 
     private var reminders: some View {
         VStack(alignment: .leading, spacing: 20) {
             Spacer()
-            Text("A nudge each week")
-                .font(.system(.largeTitle, design: .serif))
-            Text("Sunday evening, with one shot to try — the first snow, a reaction, one wide shot of where you are. You can turn it off anytime in Settings.")
-                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 16) {
+                Text("A nudge each week")
+                    .font(.system(.largeTitle, design: .serif))
+                Text("Sunday evening, with one shot to try — the first snow, a reaction, one wide shot of where you are. You can turn it off anytime in Settings.")
+                    .foregroundStyle(.secondary)
+            }
+            .onboardingCard()
             Spacer()
             Button("Remind me weekly") {
                 Task {
@@ -73,20 +103,17 @@ struct OnboardingView: View {
             }
             .buttonStyle(PrimaryButton())
             Button("Not now", action: finish)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 4)
+                .buttonStyle(SecondaryButton())
         }
-        .padding(28)
+        .padding(24)
         .padding(.bottom, 32)
     }
 }
 
-struct PrimaryButton: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.headline)
-            .foregroundStyle(Color.ground)
-            .frame(maxWidth: .infinity, minHeight: 54)
-            .background(Color.ember.opacity(configuration.isPressed ? 0.8 : 1), in: Capsule())
+private extension View {
+    func onboardingCard() -> some View {
+        padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassCard(cornerRadius: 28)
     }
 }
