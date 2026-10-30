@@ -1,223 +1,181 @@
 import Link from 'next/link'
+import { Countdown } from './Countdown'
 import { MemoryPool } from './MemoryPool'
 import { WaitlistForm } from './WaitlistForm'
+import { YearStory } from './YearStory'
 
-// One frame per week, tinted by season within the pool's blues, so the strip reads as a year going by.
-const SEASONS: [number, string, string][] = [
-  [9, '#13243f', '#6f9fd8'],   // winter
-  [22, '#0f3036', '#5fc4bd'],  // spring
-  [35, '#123754', '#8fd6ff'],  // summer
-  [48, '#1d2649', '#8f9de6'],  // fall
-  [53, '#241d42', '#bfb0ff'],  // holidays
+// Clips from across a year, rising into the pool in the bulk-import band.
+const RISING = [
+  ['Jan 3', '#6f9fd8'], ['Feb 14', '#7fb3e6'], ['Mar 30', '#5fc4bd'], ['May 9', '#6fd1b8'],
+  ['Jun 21', '#8fd6ff'], ['Jul 4', '#a3dcff'], ['Aug 17', '#8fc4f2'], ['Sep 2', '#8f9de6'],
+  ['Oct 31', '#a49be8'], ['Nov 26', '#b6a6f0'],
 ]
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-function tint(week: number) {
-  const [, a, b] = SEASONS.find(([end]) => week < end) ?? SEASONS[SEASONS.length - 1]
-  return `linear-gradient(135deg, ${a}, ${b})`
-}
-
-function frames() {
-  return Array.from({ length: 52 }, (_, i) => {
-    const week = i + 1
-    const month = MONTHS[Math.min(11, Math.floor((i * 12) / 52))]
-    return { week, label: `${month} · wk ${week}`, bg: tint(week) }
-  })
-}
-
-// The mockups' sample year: filmed weeks glow in the grid, as in the app's Year screen.
-const THIS_WEEK = 42
-const FILMED = new Set([1, 2, 3, 5, 6, 7, 9, 10, 11, 14, 16, 18, 20, 21, 23, 25, 26, 28, 31, 32, 33, 35, 36, 38, 40, 41, 42])
-const WEEK_CLIPS: [string, string][] = [['Mon 19', '0:12'], ['Wed 21', '0:31'], ['Sat 24', '0:08']]
-
-const CHAPTERS = [
+// The film's running order, as a timeline under the premiere screen.
+const CHAPTERS: [string, string, string][] = [
   ['00:00', 'Cold open', 'The year’s best moments, cut to the beat'],
   ['01:30', 'Winter', 'Snow days, your voice over the montage'],
   ['07:10', 'Spring', 'First steps, birthday candles, the garden'],
   ['13:40', 'Summer', 'The road trip, played with its own sound'],
   ['20:05', 'Fall', 'Back to school, Halloween, the long dinners'],
-  ['26:20', 'The Holidays', 'Where this year’s film ends — and next year’s begins'],
+  ['26:20', 'The Holidays', 'Where this year’s film ends'],
   ['31:00', 'Credits', 'Starring everyone you love'],
 ]
 
+const FAQ: [string, string][] = [
+  [
+    'Do I have to edit anything?',
+    'No. You film and add clips; Yearfilm finds the moments worth keeping, cuts them on the beat of the music, and lays your voice notes over each season as the narration.',
+  ],
+  [
+    'When is the film ready?',
+    'On December 20, for every family at once, so you can watch it together over the holidays. You can watch a rough cut of the year so far whenever you like.',
+  ],
+  [
+    'Where are my videos kept?',
+    'On your iPhone. If you turn on backup, or make the film with family, they go to your own iCloud, in your storage, under your Apple ID. Yearfilm runs no server that holds your videos.',
+  ],
+  [
+    'Can the rest of the family add their clips?',
+    'Yes. Invite the people you choose and their clips from that year join your film through iCloud. They need an iPhone with Yearfilm, and their clips count toward your iCloud storage.',
+  ],
+  [
+    'I already filmed most of this year. Is it too late?',
+    'Not at all. Pick everything at once and each clip is filed under the week it was filmed, read from the video itself. Anything you’ve already added is skipped.',
+  ],
+]
+
 export default function Home() {
-  const strip = frames()
   return (
     <>
-      <div className="wrap">
-        <nav className="nav">
+      <header className="hero">
+        <MemoryPool centerY={0.48} />
+        <nav className="nav wrap">
           <Link href="/" className="mark">
             year<span>film</span>
           </Link>
-          <a className="small" href="#how">
-            How it works
-          </a>
+          <a className="small" href="#how">How it works</a>
         </nav>
-
-        <header className="hero">
-          <MemoryPool />
-          <div className="hero-copy">
-            <p className="eyebrow">Premiering December 20</p>
-            <h1>
-              Your family’s year, made into <em>a film</em>.
-            </h1>
+        <div className="hero-body wrap">
+          <p className="eyebrow">For iPhone · Premiering December 20</p>
+          <h1>
+            Your family’s year, made into <em>a film</em>.
+          </h1>
+          <div className="hero-card">
             <p className="lede">
-              Film a little every week. In December, sit down together and watch the movie of your
-              year — cut, scored, and narrated in your own words.
+              Film a little every week. In December, sit down together and watch the movie of
+              your year — cut, scored, and narrated in your own words.
             </p>
             <WaitlistForm />
           </div>
-        </header>
-
-        <div className="reel" aria-hidden="true">
-          <div className="strip">
-            {[...strip, ...strip].map((f, i) => (
-              <div key={i} className="frame" style={{ background: f.bg }}>
-                {f.label}
-              </div>
-            ))}
-          </div>
         </div>
+        <a className="scroll-cue" href="#how" aria-label="See how it works">
+          <span>A year, in four moments</span>
+          <i aria-hidden="true" />
+        </a>
+      </header>
 
-        <section id="how" className="split">
-          <div className="copy">
-            <p className="eyebrow">Every week</p>
-            <h2>A shot to try, a few clips, twenty seconds of you.</h2>
-            <p className="sub">
-              Each week the app suggests one shot — a reaction, the walk there, one wide shot of
-              where you are. Add the week’s clips, then say what happened. In December, those
-              voice notes become the narration: the story told by the people who lived it.
-            </p>
-          </div>
-          <div className="mock phone" aria-hidden="true">
-            <p className="m-eyebrow">Week {THIS_WEEK} · Oct 15 – 21</p>
-            <p className="m-title">This week</p>
-            <div className="m-card m-prompt">
-              <span className="m-eyebrow">Shot to try</span>
-              <span className="m-serif">Film hands doing something: cooking, building, drawing.</span>
-            </div>
-            <p className="m-section">Clips <span>3</span></p>
-            <div className="m-strip">
-              {WEEK_CLIPS.map(([day, length], i) => (
-                <div key={day} className="m-frame" style={{ background: tint(36 + i * 4) }}>
-                  <span>{day}</span>
-                  <span>{length}</span>
-                </div>
-              ))}
-              <div className="m-frame m-add">+</div>
-            </div>
-            <div className="m-card m-voice">
-              <span className="m-record" />
-              <span>
-                <strong>What happened this week?</strong>
-                <small>Twenty seconds becomes the narration.</small>
+      <main className="wrap">
+        <YearStory />
+
+        <section className="rise">
+          <div className="rise-pool" aria-hidden="true">
+            {RISING.map(([day, tint], i) => (
+              <span key={day} className="rise-clip" style={{ '--i': i, '--tint': tint } as React.CSSProperties}>
+                {day}
               </span>
-            </div>
+            ))}
+            <span className="rise-glow" />
           </div>
-        </section>
-
-        <section className="split flip">
-          <div className="copy">
+          <div className="rise-copy">
             <p className="eyebrow">Already filming</p>
             <h2>Bring the whole year in at once.</h2>
             <p className="sub">
-              Pick a few hundred videos from your library. Each one is filed under the week it was
-              filmed, read from the video itself, and anything you’ve already added is skipped.
-              Watch them float into the pool and light up their weeks.
+              Choose a few hundred videos from your library. Each one floats into the pool and
+              settles in the week it was filmed, read from the video itself. Anything you’ve already
+              added is skipped, and nothing else from your library is ever touched.
             </p>
-          </div>
-          <div className="mock year" aria-hidden="true">
-            <p className="m-eyebrow">Premiere · December 20</p>
-            <p className="m-title">2026</p>
-            <p className="m-section">{FILMED.size} of {THIS_WEEK} weeks filmed</p>
-            <div className="m-grid">
-              {Array.from({ length: 52 }, (_, i) => i + 1).map((w) => (
-                <span
-                  key={w}
-                  className={FILMED.has(w) ? 'on' : w > THIS_WEEK ? 'future' : undefined}
-                  data-current={w === THIS_WEEK || undefined}
-                >
-                  {w}
-                </span>
-              ))}
-            </div>
-            <div className="m-card m-rough">
-              <span className="m-fan">
-                {[8, 20, 31, 38, 42].map((w, i) => (
-                  <i key={w} style={{ background: tint(w), transform: `rotate(${(i - 2) * 8}deg) translateX(${(i - 2) * 6}px)` }} />
-                ))}
-              </span>
-              <span>
-                <span className="m-eyebrow">Rough cut</span>
-                <span className="m-serif">Watch your year so far</span>
-                <small>142 clips so far</small>
-              </span>
-              <span className="m-play">▶</span>
-            </div>
           </div>
         </section>
 
-        <section>
+        <section className="premiere">
           <p className="eyebrow">Premiere night</p>
           <h2>Not a slideshow. A film.</h2>
           <p className="sub">
-            Real chapters, real scenes with their own sound, and montages cut on the beat — the way
-            a documentary is made. Watch a rough cut whenever you like; it’s cut right on your
-            phone.
+            Real chapters, scenes that keep their own sound, montages cut on the beat — the way a
+            documentary is made. Then everyone sits down on the same night.
           </p>
-          <ol className="chapters">
-            {CHAPTERS.map(([t, n, d]) => (
-              <li key={n}>
-                <span className="t">{t}</span>
-                <span className="n">{n}</span>
-                <span className="d">{d}</span>
+          <div className="screen" aria-hidden="true">
+            <MemoryPool centerY={0.5} />
+            <div className="screen-title">
+              <small>A Yearfilm</small>
+              <span>The Garcias</span>
+              <small>2026</small>
+            </div>
+          </div>
+          <ol className="timeline">
+            {CHAPTERS.map(([time, name, about]) => (
+              <li key={name}>
+                <span className="t-time">{time}</span>
+                <span className="t-name">{name}</span>
+                <span className="t-about">{about}</span>
               </li>
             ))}
           </ol>
+          <p className="premiere-date">
+            <span className="m-eyebrow">December 20</span>
+            <Countdown />
+          </p>
         </section>
 
-        <section>
-          <div className="features">
-            <div className="feature">
-              <h3>Made for the TV</h3>
-              <p>Widescreen, steady volume, chapter by chapter. Vertical phone clips are framed for the big screen, not squeezed between black bars.</p>
-            </div>
-            <div className="feature">
-              <h3>Scored to your year</h3>
-              <p>Music chosen for each season, with every cut landing on the beat and the music dipping when someone speaks.</p>
-            </div>
-            <div className="feature">
-              <h3>The whole family films</h3>
-              <p>Grandparents, siblings, partners: anyone you invite can add their clips to this year’s film.</p>
-            </div>
-            <div className="feature">
-              <h3>One night for everyone</h3>
-              <p>Every family’s film unlocks on December 20, in time to watch together for the holidays.</p>
-            </div>
+        <section className="trio">
+          <div className="trio-item">
+            <p className="eyebrow">Made for the TV</p>
+            <h3>Phone footage, big-screen ready.</h3>
+            <p>Widescreen and steady in volume, chapter by chapter. Vertical clips are framed for the TV, not squeezed between black bars.</p>
+          </div>
+          <div className="trio-item">
+            <p className="eyebrow">Scored to your year</p>
+            <h3>Every cut on the beat.</h3>
+            <p>Music chosen for each season, with the music dipping whenever someone speaks — so the voices carry the story.</p>
+          </div>
+          <div className="trio-item">
+            <p className="eyebrow">The whole family films</p>
+            <h3>Everyone’s footage, one film.</h3>
+            <p>Grandparents, siblings, partners: the people you invite add their clips from the year, and they become part of your film.</p>
           </div>
         </section>
 
-        <section className="privacy">
-          <div className="m-card privacy-card">
-            <p className="eyebrow">Your footage stays yours</p>
-            <h2>On your iPhone. In your iCloud. Nowhere else.</h2>
-            <p className="sub">
-              Your clips and voice notes live on your iPhone. If you turn on backup, or make the
-              film with family, they go through your own iCloud — under your Apple ID, in your
-              storage. Yearfilm runs no server that holds your videos, so there’s nothing of yours
-              on ours to lose, sell, or leak.
-            </p>
-            <Link className="small-link" href="/privacy">Read the privacy policy</Link>
-          </div>
+        <section className="promise">
+          <span className="promise-mark" aria-hidden="true" />
+          <p className="eyebrow">Your footage stays yours</p>
+          <h2>On your iPhone. In your iCloud. Nowhere else.</h2>
+          <p className="sub">
+            Your clips and voice notes live on your iPhone. Backup and family sharing go through
+            your own iCloud, under your Apple ID. Yearfilm runs no server that holds your videos —
+            there’s nothing of yours on ours to lose, sell, or leak.
+          </p>
+          <Link className="small-link" href="/privacy">Read the privacy policy →</Link>
+        </section>
+
+        <section className="faq">
+          <h2>Questions</h2>
+          {FAQ.map(([q, a]) => (
+            <details key={q}>
+              <summary>{q}</summary>
+              <p>{a}</p>
+            </details>
+          ))}
         </section>
 
         <section className="closing">
+          <MemoryPool centerY={0.55} />
           <span className="closing-mark" aria-hidden="true" />
           <h2>Next year’s film starts in January.</h2>
           <p className="sub">Join the waitlist and be ready to film from week one.</p>
           <WaitlistForm cta="Save my seat" />
         </section>
-      </div>
+      </main>
 
       <footer>
         <div className="wrap row">
