@@ -72,7 +72,22 @@ struct MovieInfo {
         return MovieInfo(capturedOn: date, duration: seconds.isFinite ? seconds : 0)
     }
 
+    /// Frames already pulled from clips, so scrolling back and switching tabs don't decode them again.
+    private static let thumbnails: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 300
+        return cache
+    }()
+
     static func thumbnail(_ url: URL, maxSide: CGFloat = 320) async -> UIImage? {
+        let key = "\(url.lastPathComponent)@\(Int(maxSide))" as NSString
+        if let cached = thumbnails.object(forKey: key) { return cached }
+        let image = await makeThumbnail(url, maxSide: maxSide)
+        if let image { thumbnails.setObject(image, forKey: key) }
+        return image
+    }
+
+    private static func makeThumbnail(_ url: URL, maxSide: CGFloat) async -> UIImage? {
         let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: maxSide, height: maxSide)

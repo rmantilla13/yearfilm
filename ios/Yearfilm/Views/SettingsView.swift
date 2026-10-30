@@ -32,8 +32,11 @@ struct SettingsView: View {
                     Text("Sunday at 6pm, with a shot to try.")
                 }
 
+                BackupSection()
+                FamilySection()
+
                 Section {
-                    Text("Your clips and voice notes stay on this iPhone. Nothing is uploaded in this version of Yearfilm.")
+                    Text("Your clips and voice notes stay on this iPhone. Yearfilm has no server that holds them. If you turn on iCloud backup, a copy goes to your own iCloud; relatives you invite can see the year you share with them.")
                     Text("If a future feature needs an outside service — including an AI service — the app will show you exactly what would be sent and to whom, and ask first.")
                     Link("Privacy policy", destination: URL(string: "https://yearfilm.com/privacy")!)
                     Link("Support", destination: URL(string: "https://yearfilm.com/support")!)
@@ -44,13 +47,14 @@ struct SettingsView: View {
                 Section {
                     Button("Delete all my data", role: .destructive) { confirmDelete = true }
                 } footer: {
-                    Text("Removes every clip and voice note from Yearfilm on this iPhone. Videos still in your photo library aren’t touched.")
+                    Text("Removes every clip and voice note from Yearfilm on this iPhone. Videos still in your photo library aren’t touched. Your iCloud backup isn’t touched; delete it under iCloud.")
                 }
 
                 Section {
                     LabeledContent("Version", value: version)
                 }
             }
+            .memoryPoolBackground(intensity: 0.6)
             .navigationTitle("Settings")
             .confirmationDialog("Delete everything?", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete all clips and voice notes", role: .destructive, action: deleteAll)
