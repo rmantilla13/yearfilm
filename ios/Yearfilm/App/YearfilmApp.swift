@@ -10,7 +10,11 @@ struct YearfilmApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: Clip.self, VoiceNote.self)
+            // SwiftData's own iCloud sync stays off: by default it turns on in any build signed
+            // with an iCloud container, and it can't open a store with unique ids or required
+            // fields (the TestFlight crash on launch). Backup goes through CloudBackup instead.
+            let local = ModelConfiguration(cloudKitDatabase: .none)
+            container = try ModelContainer(for: Clip.self, VoiceNote.self, configurations: local)
         } catch {
             fatalError("Couldn’t open the library: \(error)")
         }
